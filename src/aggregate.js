@@ -150,16 +150,46 @@ export function aggregateEvent(event) {
     pairs,
     byGifter: grouped.byGifter,
     byStamp: grouped.byStamp,
-    rows: rows.slice(0, 1000),
+    rows: withEvents(event.slug, rows).slice(0, 1000),
     rowTotal: rows.length,
   };
 }
 
 export function allGiftRows(event) {
   const recipientIds = (event.targets || []).map((target) => String(target.id)).filter(Boolean);
-  return store.queryGifts(event.slug, {
-    from: event.startedAt,
-    to: event.endedAt,
-    recipientIds,
+  return withEvents(
+    event.slug,
+    store.queryGifts(event.slug, {
+      from: event.startedAt,
+      to: event.endedAt,
+      recipientIds,
+    }),
+  );
+}
+
+function giftMatchesEvent(event, gift) {
+  const at = gift.createdAt;
+  if (!at) return false;
+  if (event.startedAt && at < event.startedAt) return false;
+  if (event.endedAt) {
+    if (at > event.endedAt) return false;
+  } else if (!event.isOpen) {
+    return false;
+  }
+  const targets = event.targets || [];
+  if (!targets.length) return true;
+  return targets.some((target) => String(target.id) === String(gift.recipientId));
+}
+
+export function withEvents(slug, rows) {
+  const events = store.listEvents(slug);
+  return rows.map((row) => {
+    const matched = events
+      .filter((event) => giftMatchesEvent(event, row))
+      .sort((a, b) => {
+        const specific = (b.targets?.length ? 1 : 0) - (a.targets?.length ? 1 : 0);
+        return specific || String(a.startedAt).localeCompare(String(b.startedAt));
+      });
+    return { ...row, eventTitles: matched.map((event) => event.title) };
   });
 }

@@ -589,15 +589,16 @@ function detailTable(tab, aggregate) {
     );
   }
   return table(
-    ["日時", "ギフティング者", "ギフト先", "スタンプ", "ポイント"],
+    ["日時", "イベント", "ギフティング者", "ギフト先", "スタンプ", "ポイント"],
     aggregate.rows.map((row) => [
       fmt(row.createdAt),
+      esc(row.eventTitles?.length ? row.eventTitles.join("、") : "—"),
       esc(row.gifterName),
       esc(row.recipientName),
       `<div class="name-cell">${row.stampImage ? `<img class="stamp" src="${esc(row.stampImage)}" alt="" />` : ""}<span>${esc(row.stampName)}</span></div>`,
       pts(row.points),
     ]),
-    [4],
+    [5],
   );
 }
 
