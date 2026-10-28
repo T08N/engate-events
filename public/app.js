@@ -588,17 +588,22 @@ function detailTable(tab, aggregate) {
       [1, 2, 3],
     );
   }
+  const eventCount = Math.max(1, ...aggregate.rows.map((row) => row.eventTitles?.length || 1));
+  const eventHeaders = eventCount === 1 ? ["イベント"] : Array.from({ length: eventCount }, (_, index) => `イベント${index + 1}`);
   return table(
-    ["日時", "イベント", "ギフティング者", "ギフト先", "スタンプ", "ポイント"],
-    aggregate.rows.map((row) => [
-      fmt(row.createdAt),
-      esc(row.eventTitles?.length ? row.eventTitles.join("、") : "—"),
-      esc(row.gifterName),
-      esc(row.recipientName),
-      `<div class="name-cell">${row.stampImage ? `<img class="stamp" src="${esc(row.stampImage)}" alt="" />` : ""}<span>${esc(row.stampName)}</span></div>`,
-      pts(row.points),
-    ]),
-    [5],
+    ["日時", ...eventHeaders, "ギフティング者", "ギフト先", "スタンプ", "ポイント"],
+    aggregate.rows.map((row) => {
+      const titles = row.eventTitles?.length ? row.eventTitles : [];
+      return [
+        fmt(row.createdAt),
+        ...eventHeaders.map((_, index) => esc(titles[index] || "")),
+        esc(row.gifterName),
+        esc(row.recipientName),
+        `<div class="name-cell">${row.stampImage ? `<img class="stamp" src="${esc(row.stampImage)}" alt="" />` : ""}<span>${esc(row.stampName)}</span></div>`,
+        pts(row.points),
+      ];
+    }),
+    [eventHeaders.length + 4],
   );
 }
 

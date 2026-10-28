@@ -128,13 +128,17 @@ async function handleApi(req, res, url) {
       const byTime = String(a.createdAt).localeCompare(String(b.createdAt));
       return byTime || a.postId - b.postId;
     });
-    const header = ["日時", "イベント", "ギフティング者", "ギフト先", "スタンプ", "ポイント", "返信", "投稿ID"];
+    const titlesOf = (row) => (row.eventTitles?.length ? row.eventTitles : [event.title]);
+    const eventCount = Math.max(1, ...rows.map((row) => titlesOf(row).length));
+    const eventHeaders = eventCount === 1 ? ["イベント"] : Array.from({ length: eventCount }, (_, index) => `イベント${index + 1}`);
+    const header = ["日時", ...eventHeaders, "ギフティング者", "ギフト先", "スタンプ", "ポイント", "返信", "投稿ID"];
     const lines = [header.join(",")];
     for (const row of rows) {
+      const titles = titlesOf(row);
       lines.push(
         [
           formatTokyo(row.createdAt),
-          row.eventTitles?.length ? row.eventTitles.join("、") : event.title,
+          ...eventHeaders.map((_, index) => titles[index] || ""),
           row.gifterName,
           row.recipientName,
           row.stampName,
