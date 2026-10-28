@@ -90,12 +90,30 @@ export function mapCommunity(raw) {
   };
 }
 
+function htmlToText(html) {
+  return String(html || "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function mapEvent(slug, raw) {
   return {
     id: Number(raw.id),
     communityId: Number(raw.community_id) || 0,
     slug,
     title: raw.title || "(無題)",
+    description: htmlToText(raw.description),
     startedAt: raw.started_at || null,
     endedAt: raw.ended_at || null,
     isOpen: raw.is_open ? 1 : 0,
@@ -173,6 +191,10 @@ export async function fetchRewards(slug, open) {
     if (!rows.length || rows.length < limit || offset >= count) break;
   }
   return all;
+}
+
+export async function fetchReward(slug, eventId) {
+  return engateGet(`/communities/${encodeURIComponent(slug)}/rewards/${eventId}`);
 }
 
 export async function fetchRanking(slug, eventId) {

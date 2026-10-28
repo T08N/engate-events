@@ -345,6 +345,7 @@ function drawEvent(data) {
         <h1>${esc(event.title)}</h1>
         <p class="meta">${fmt(event.startedAt)} 〜 ${fmt(event.endedAt)}</p>
         <p class="meta">条件: ${esc(conditionText(event.conditions))}</p>
+        ${event.description ? `<div class="event-copy">${esc(event.description)}</div>` : ""}
         <div class="chips">
           ${
             event.targets?.length

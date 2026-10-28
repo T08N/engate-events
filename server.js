@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { aggregateEvent, allGiftRows } from "./src/aggregate.js";
-import { advanceTimeline, ensureRanking, ensureTeamEvents, loadHome, publicCommunity, publicEvent } from "./src/sync.js";
+import { advanceTimeline, ensureEventCopy, ensureRanking, ensureTeamEvents, loadHome, publicCommunity, publicEvent } from "./src/sync.js";
 import * as store from "./src/store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -97,8 +97,9 @@ async function handleApi(req, res, url) {
     const eventId = Number(parts[4]);
     if (!validSlug(slug) || !Number.isInteger(eventId)) return send(res, 400, { error: "指定が不正です" });
     await ensureTeamEvents(slug, false);
-    const event = store.getEvent(slug, eventId);
-    if (!event) return send(res, 404, { error: "イベントが見つかりません" });
+    const stored = store.getEvent(slug, eventId);
+    if (!stored) return send(res, 404, { error: "イベントが見つかりません" });
+    const event = await ensureEventCopy(stored);
     const ranking = await ensureRanking(slug, eventId, force);
     const aggregate = aggregateEvent(event);
     const community = store.communityBySlug(slug);

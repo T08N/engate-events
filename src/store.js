@@ -35,6 +35,7 @@ db.exec(`
     targets_json TEXT,
     conditions_json TEXT,
     reward_type_json TEXT,
+    description TEXT,
     updated_at TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_events_slug ON events(slug);
@@ -81,6 +82,11 @@ db.exec(`
     updated_at TEXT NOT NULL
   );
 `);
+
+const eventColumns = db.prepare("PRAGMA table_info(events)").all();
+if (!eventColumns.some((column) => column.name === "description")) {
+  db.exec("ALTER TABLE events ADD COLUMN description TEXT");
+}
 
 const nowIso = () => new Date().toISOString();
 
@@ -153,6 +159,7 @@ function writeEvent(insert, slug, event, stamp) {
     JSON.stringify(event.targets || []),
     JSON.stringify(event.conditions || []),
     JSON.stringify(event.rewardType || []),
+    event.description ?? null,
     stamp,
   );
 }
@@ -162,8 +169,8 @@ export function upsertEvents(slug, events) {
   const insert = db.prepare(`
     INSERT INTO events (
       id, community_id, slug, title, started_at, ended_at, is_open, is_future, is_close,
-      image, targets_json, conditions_json, reward_type_json, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      image, targets_json, conditions_json, reward_type_json, description, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       community_id = excluded.community_id,
       slug = excluded.slug,
@@ -177,6 +184,7 @@ export function upsertEvents(slug, events) {
       targets_json = excluded.targets_json,
       conditions_json = excluded.conditions_json,
       reward_type_json = excluded.reward_type_json,
+      description = excluded.description,
       updated_at = excluded.updated_at
   `);
   const stillOpen = new Set(events.filter((event) => event.isOpen).map((event) => event.id));
@@ -201,8 +209,8 @@ export function saveEvents(slug, events) {
   const insert = db.prepare(`
     INSERT INTO events (
       id, community_id, slug, title, started_at, ended_at, is_open, is_future, is_close,
-      image, targets_json, conditions_json, reward_type_json, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      image, targets_json, conditions_json, reward_type_json, description, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const touch = db.prepare(`
     INSERT INTO team_sync (slug, fetched_at) VALUES (?, ?)
@@ -236,6 +244,7 @@ function hydrateEvent(row) {
     targets: JSON.parse(row.targets_json || "[]"),
     conditions: JSON.parse(row.conditions_json || "[]"),
     rewardType: JSON.parse(row.reward_type_json || "[]"),
+    description: row.description ?? null,
     updatedAt: row.updated_at,
   };
 }
@@ -249,6 +258,10 @@ export function listEvents(slug) {
 
 export function getEvent(slug, id) {
   return hydrateEvent(db.prepare("SELECT * FROM events WHERE slug = ? AND id = ?").get(slug, id));
+}
+
+export function saveEventDescription(id, description) {
+  db.prepare("UPDATE events SET description = ? WHERE id = ?").run(description, id);
 }
 
 export function listEventsByIds(ids) {

@@ -3,7 +3,9 @@ import {
   fetchCommunityProfile,
   fetchOpenCommunityIds,
   fetchRanking,
+  fetchReward,
   fetchRewards,
+  mapEvent,
   fetchTimelinePage,
   isTestCommunity,
   mapGift,
@@ -80,6 +82,19 @@ export async function ensureTeamEvents(slug, force = false) {
   const events = [...byId.values()].sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)));
   store.saveEvents(slug, events);
   return { community: store.communityBySlug(slug), events: store.listEvents(slug) };
+}
+
+export async function ensureEventCopy(event) {
+  if (!event || event.description != null) return event;
+  try {
+    const raw = await fetchReward(event.slug, event.id);
+    const description = mapEvent(event.slug, raw).description || "";
+    store.saveEventDescription(event.id, description);
+    return { ...event, description };
+  } catch (error) {
+    console.error("event copy failed", event.id, error.message);
+    return event;
+  }
 }
 
 export async function ensureRanking(slug, eventId, force = false) {
@@ -190,6 +205,7 @@ export function publicEvent(event) {
     targets: event.targets,
     conditions: event.conditions,
     rewardType: event.rewardType,
+    description: event.description || "",
     status: eventStatus(event),
     url: `https://engate.jp/communities/${event.slug}/rewards/${event.id}/`,
   };

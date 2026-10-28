@@ -229,6 +229,13 @@ h2 { font-size: 28px; margin: 0; }
 }
 .kpi span { color: var(--muted); font-size: 12px; }
 
+.event-copy {
+  margin: 10px 0 0;
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.75;
+  max-width: 68ch;
+}
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .chip {
   display: inline-flex;
