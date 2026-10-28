@@ -345,7 +345,11 @@ function drawEvent(data) {
         <h1>${esc(event.title)}</h1>
         <p class="meta">${fmt(event.startedAt)} 〜 ${fmt(event.endedAt)}</p>
         <p class="meta">条件: ${esc(conditionText(event.conditions))}</p>
-        ${event.description ? `<div class="event-copy">${esc(event.description)}</div>` : ""}
+        ${
+          event.description
+            ? `<div class="event-copy" id="event-copy">${esc(event.description)}</div><button class="text-more" id="event-copy-toggle" type="button" hidden>続きを見る</button>`
+            : ""
+        }
         <div class="chips">
           ${
             event.targets?.length
@@ -416,6 +420,19 @@ function drawEvent(data) {
   `;
   bindSync(event);
   bindDetails(aggregate);
+  bindEventCopy();
+}
+
+function bindEventCopy() {
+  const copy = document.querySelector("#event-copy");
+  const toggle = document.querySelector("#event-copy-toggle");
+  if (!copy || !toggle) return;
+  if (copy.scrollHeight <= copy.clientHeight + 2) return;
+  toggle.hidden = false;
+  toggle.addEventListener("click", () => {
+    const open = copy.classList.toggle("is-open");
+    toggle.textContent = open ? "閉じる" : "続きを見る";
+  });
 }
 
 function differenceCallout(ranking, aggregate, event) {

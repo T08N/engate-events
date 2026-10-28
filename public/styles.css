@@ -235,6 +235,18 @@ h2 { font-size: 28px; margin: 0; }
   font-size: 14px;
   line-height: 1.75;
   max-width: 68ch;
+  max-height: 7em;
+  overflow: hidden;
+}
+.event-copy.is-open { max-height: none; }
+.text-more {
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-dark);
+  font-weight: 700;
+  cursor: pointer;
 }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .chip {
