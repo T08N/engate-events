@@ -93,7 +93,7 @@ function conditionText(conditions) {
 }
 
 async function renderHome() {
-  app.innerHTML = `<div class="loading">開催中のイベントを Engate から集めています。初回はチーム数ぶん時間がかかります。</div>`;
+  app.innerHTML = `<p class="loading">Please wait a moment.</p>`;
   try {
     const refresh = new URLSearchParams(location.search).get("refresh") === "1";
     state.home = await api(`/api/home${refresh ? "?refresh=1" : ""}`);
