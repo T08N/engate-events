@@ -241,15 +241,50 @@ h2 { font-size: 28px; margin: 0; }
 }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .button, .button-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
-  padding: 8px 14px;
+  padding: 10px 16px;
   text-decoration: none;
   border: 1px solid transparent;
+  font-weight: 700;
 }
-.button { background: var(--ink); color: white; }
-.button:hover { background: #000; }
+.button { background: var(--accent); color: white; }
+.button:hover { background: var(--accent-dark); }
 .button:disabled { opacity: 0.55; cursor: wait; }
-.button-ghost { background: transparent; border-color: var(--line); color: var(--ink); }
+.button-ghost { background: transparent; border-color: var(--line); color: var(--ink); font-weight: 500; }
+.button-ghost:hover { border-color: var(--ink); }
+.guide {
+  background: var(--card);
+  border: 1px solid #f3d2bf;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 22px 22px 18px;
+  margin: 8px 0 18px;
+}
+.guide h2 { margin-bottom: 8px; }
+.guide .lede { margin-bottom: 14px; }
+.guide-official {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  background: #faf7f1;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.guide-official strong {
+  font-family: Newsreader, serif;
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.guide-note { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+.kpi-kicker { display: block; color: var(--muted); font-size: 12px; font-weight: 700; }
+.kpi-hint { display: block; margin-top: 4px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .callout {
   background: #fff6ee;
   border: 1px solid #f3d2bf;

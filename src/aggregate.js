@@ -52,6 +52,29 @@ function addBucket(map, key, identity, row) {
   bucket.stamps.set(stampKey, (bucket.stamps.get(stampKey) || 0) + 1);
 }
 
+function pairRows(rows) {
+  const map = new Map();
+  for (const row of rows) {
+    const key = `${row.gifterId || row.gifterName}\0${row.recipientId || row.recipientName}`;
+    let bucket = map.get(key);
+    if (!bucket) {
+      bucket = {
+        gifterName: row.gifterName || "名称非公開",
+        gifterAvatar: row.gifterAvatar || "",
+        recipientName: row.recipientName || "不明",
+        count: 0,
+        points: 0,
+      };
+      map.set(key, bucket);
+    }
+    bucket.count += 1;
+    bucket.points += row.points || 0;
+  }
+  return [...map.values()].sort(
+    (a, b) => b.points - a.points || b.count - a.count || a.gifterName.localeCompare(b.gifterName, "ja"),
+  );
+}
+
 function topKey(map) {
   let best = "";
   let bestCount = -1;
@@ -104,6 +127,7 @@ export function aggregateEvent(event) {
     recipientIds,
   });
   const grouped = groupRows(rows);
+  const pairs = pairRows(rows);
   const gifters = new Set(rows.map((row) => row.gifterId || row.gifterName));
   return {
     covered: true,
@@ -123,6 +147,7 @@ export function aggregateEvent(event) {
       stamps: grouped.byStamp.length,
     },
     byRecipient: grouped.byRecipient,
+    pairs,
     byGifter: grouped.byGifter,
     byStamp: grouped.byStamp,
     rows: rows.slice(0, 1000),

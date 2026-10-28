@@ -357,19 +357,27 @@ function drawEvent(data) {
           }
         </div>
         <div class="actions">
-          <a class="button" href="${esc(event.url)}" target="_blank" rel="noreferrer">Engateで開く</a>
-          <a class="button-ghost" href="/api/teams/${esc(event.slug)}/events/${event.id}/gifts.csv">CSV</a>
+          ${
+            aggregate.covered
+              ? `<a class="button" href="/api/teams/${esc(event.slug)}/events/${event.id}/gifts.csv">CSVをダウンロード</a>`
+              : ""
+          }
+          <a class="button-ghost" href="${esc(event.url)}" target="_blank" rel="noreferrer">Engateで開く</a>
         </div>
       </div>
     </section>
-    <div class="kpis">
-      <div class="kpi"><b>${pts(ranking.totalPoint)}</b><span>公式ランキング合計 / ${ranking.count}人</span></div>
-      <div class="kpi"><b>${aggregate.covered ? pts(aggregate.summary.totalPoints) : "未集計"}</b><span>期間内ギフト明細</span></div>
-      <div class="kpi"><b>${aggregate.covered ? aggregate.summary.count.toLocaleString("ja-JP") : "—"}</b><span>ギフト件数</span></div>
-      <div class="kpi"><b>${aggregate.covered ? aggregate.summary.stamps.toLocaleString("ja-JP") : "—"}</b><span>スタンプ種類</span></div>
+    ${
+      aggregate.covered
+        ? `<div class="kpis">
+      <div class="kpi"><span class="kpi-kicker">公式の合計</span><b>${pts(ranking.totalPoint)}</b><span class="kpi-hint">${ranking.count}人がエントリーしたポイント</span></div>
+      <div class="kpi"><span class="kpi-kicker">集めた合計</span><b>${pts(aggregate.summary.totalPoints)}</b><span class="kpi-hint">公開されたギフトを1件ずつ足した数</span></div>
+      <div class="kpi"><span class="kpi-kicker">ギフトの件数</span><b>${aggregate.summary.count.toLocaleString("ja-JP")}</b><span class="kpi-hint">期間内の公開ギフト</span></div>
+      <div class="kpi"><span class="kpi-kicker">スタンプの種類</span><b>${aggregate.summary.stamps.toLocaleString("ja-JP")}</b><span class="kpi-hint">使われたスタンプ</span></div>
     </div>
-    ${differenceCallout(ranking, aggregate, event)}
-    <section class="panel" id="sync-panel">${syncPanel(event, aggregate)}</section>
+    ${differenceCallout(ranking, aggregate, event)}`
+        : ""
+    }
+    ${syncPanel(event, aggregate, ranking)}
     <div class="section-head"><h2>公式ランキング</h2><p>Engate のイベント順位です。</p></div>
     <section class="panel">
       ${
@@ -393,13 +401,17 @@ function drawEvent(data) {
           : `<div class="empty">公式ランキングはまだ空です。</div>`
       }
     </section>
-    <div class="section-head">
+    ${
+      aggregate.covered
+        ? `<div class="section-head">
       <div>
         <h2>ギフト明細</h2>
         <p>公開タイムライン上の、期間内${event.targets?.length ? "かつ対象ギフト先" : ""}のギフティングです。</p>
       </div>
     </div>
-    <section class="panel" id="detail-panel">${detailPanel(aggregate)}</section>
+    <section class="panel" id="detail-panel">${detailPanel(aggregate)}</section>`
+        : ""
+    }
   `;
   bindSync(event);
   bindDetails(aggregate);
@@ -415,23 +427,49 @@ function differenceCallout(ranking, aggregate, event) {
   return `<div class="callout">公式ランキングは ${pts(official)}、明細は ${pts(detailed)} です。公式側はエントリーしたギフティングの合計で、明細は${event.targets?.length ? "対象ギフト先への" : "期間内の"}公開ギフトを1件ずつ足したものです。</div>`;
 }
 
-function syncPanel(event, aggregate) {
+function syncPanel(event, aggregate, ranking) {
   const timeline = aggregate.timeline;
-  const label = aggregate.covered ? "最新の投稿を反映" : "ギフト明細を集計";
-  let status = "まだこのチームのタイムラインは読んでいません。";
+  const hasSaved = (timeline?.giftCount || 0) > 0 || (timeline?.nextOffset || 0) > 0;
+  let status = "まだこのチームの投稿は読んでいません。";
   if (aggregate.covered && timeline && !timeline.complete) {
     status = `イベント開始より前の投稿（${fmt(timeline.oldestAt)}）まで読みました。`;
   } else if (timeline?.totalPosts) {
     status = `${timeline.nextOffset || 0} / ${timeline.totalPosts} 投稿を確認。ギフト ${timeline.giftCount || 0} 件を保存。`;
   }
+  const reset = hasSaved
+    ? `<button class="button-ghost" id="reset-button" type="button">集め直す</button>`
+    : "";
+  if (!aggregate.covered) {
+    return `
+      <section class="guide" id="sync-panel">
+        <p class="eyebrow">次にすること</p>
+        <h2>ギフトの中身を集める</h2>
+        <p class="lede">今ある数字は、Engate公式の合計だけです。誰が、どのスタンプを、何ポイント送ったかは、下のボタンで集めます。</p>
+        <div class="guide-official">
+          <span>公式の合計</span>
+          <strong>${pts(ranking.totalPoint)}</strong>
+          <span>${ranking.count}人</span>
+        </div>
+        <p class="meta" id="sync-status">${esc(status)}</p>
+        <div class="progress-track"><div class="progress-bar" id="sync-bar"></div></div>
+        <div class="actions">
+          <button class="button" id="sync-button" type="button">ギフトを集める</button>
+          ${reset}
+        </div>
+        <p class="guide-note">集まると、件数・スタンプの種類・CSVダウンロードが出ます。</p>
+      </section>
+    `;
+  }
   return `
-    <p>${aggregate.covered ? "この期間までタイムラインを確認済みです。" : "タイムラインを新しい投稿からさかのぼり、イベント開始まで公開ギフトを集めます。"}</p>
-    <p class="meta" id="sync-status">${esc(status)}</p>
-    <div class="progress-track"><div class="progress-bar" id="sync-bar"></div></div>
-    <div class="actions">
-      <button class="button" id="sync-button" type="button">${label}</button>
-      <button class="button-ghost" id="reset-button" type="button">保存済み明細を消して最初から</button>
-    </div>
+    <section class="panel" id="sync-panel">
+      <p>この期間まで投稿を確認済みです。新しい投稿があれば、もう一度集められます。</p>
+      <p class="meta" id="sync-status">${esc(status)}</p>
+      <div class="progress-track"><div class="progress-bar" id="sync-bar"></div></div>
+      <div class="actions">
+        <button class="button" id="sync-button" type="button">最新の投稿を反映</button>
+        ${reset}
+      </div>
+    </section>
   `;
 }
 
@@ -439,7 +477,7 @@ function bindSync(event) {
   const button = document.querySelector("#sync-button");
   const reset = document.querySelector("#reset-button");
   button.addEventListener("click", () => runSync(event, false));
-  reset.addEventListener("click", async () => {
+  reset?.addEventListener("click", async () => {
     if (!window.confirm("保存したギフト明細を消して、取り直します。")) return;
     button.disabled = true;
     reset.disabled = true;
@@ -452,7 +490,7 @@ async function runSync(event, started) {
   const button = document.querySelector("#sync-button");
   const reset = document.querySelector("#reset-button");
   button.disabled = true;
-  reset.disabled = true;
+  if (reset) reset.disabled = true;
   let refreshHead = !started;
   let guard = 0;
   try {
@@ -478,12 +516,12 @@ async function runSync(event, started) {
     const status = document.querySelector("#sync-status");
     if (status) status.textContent = error.message;
     button.disabled = false;
-    reset.disabled = false;
+    if (reset) reset.disabled = false;
   }
 }
 
 function detailPanel(aggregate) {
-  if (!aggregate.covered) return `<div class="empty">上の「ギフト明細を集計」で、スタンプごとの内訳を作ります。</div>`;
+  if (!aggregate.covered) return `<div class="empty">「ギフトを集める」を押すと、スタンプごとの内訳がここに出ます。</div>`;
   if (!aggregate.summary.count) return `<div class="empty">この期間の公開ギフトは見つかりませんでした。</div>`;
   return `
     <div class="tabs" id="detail-tabs">
@@ -515,14 +553,14 @@ function bindDetails(aggregate) {
 function detailTable(tab, aggregate) {
   if (tab === "recipient") {
     return table(
-      ["ギフト先", "区分", "件数", "ギフティング者", "合計"],
-      aggregate.byRecipient.map((row) => [
-        esc(row.name),
-        row.isTeam ? "チーム" : "選手",
+      ["ギフティング者", "ギフト先", "件数", "合計"],
+      (aggregate.pairs || []).map((row) => [
+        `<div class="name-cell">${row.gifterAvatar ? `<img class="avatar" src="${esc(row.gifterAvatar)}" alt="" />` : ""}<span>${esc(row.gifterName)}</span></div>`,
+        esc(row.recipientName),
         row.count.toLocaleString("ja-JP"),
-        row.gifters.toLocaleString("ja-JP"),
         pts(row.points),
       ]),
+      [2, 3],
     );
   }
   if (tab === "gifter") {
