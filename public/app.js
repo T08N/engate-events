@@ -561,7 +561,7 @@ function bindDetails(aggregate) {
     document.querySelector("#detail-table").innerHTML = detailTable(tab, aggregate);
     const note = document.querySelector("#detail-note");
     note.textContent = tab === "rows" && aggregate.rowTotal > aggregate.rows.length
-      ? `明細は新しい順に ${aggregate.rows.length} 件まで表示しています。全 ${aggregate.rowTotal} 件は CSV に入っています。`
+      ? `明細は古い順に ${aggregate.rows.length} 件まで表示しています。全 ${aggregate.rowTotal} 件は CSV に入っています。`
       : `${aggregate.summary.gifters} 人が ${aggregate.summary.recipients} 先へ、${aggregate.summary.stamps} 種類のスタンプを送っています。`;
   };
   for (const button of buttons) button.addEventListener("click", () => show(button.dataset.tab));

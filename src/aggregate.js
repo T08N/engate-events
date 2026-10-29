@@ -150,7 +150,10 @@ export function aggregateEvent(event) {
     pairs,
     byGifter: grouped.byGifter,
     byStamp: grouped.byStamp,
-    rows: withEvents(event.slug, rows).slice(0, 1000),
+    rows: withEvents(
+      event.slug,
+      [...rows].sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)) || a.postId - b.postId),
+    ).slice(0, 1000),
     rowTotal: rows.length,
   };
 }
