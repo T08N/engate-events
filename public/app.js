@@ -342,7 +342,7 @@ function drawEvent(data) {
           <span>${esc(community.name)}</span>
           <span class="pill ${esc(event.status)}">${statusLabel(event.status)}</span>
         </div>
-        <h1>${esc(event.title)}</h1>
+        <h1 class="event-title">${esc(event.title)}</h1>
         <p class="meta">${fmt(event.startedAt)} 〜 ${fmt(event.endedAt)}</p>
         <p class="meta">条件: ${esc(conditionText(event.conditions))}</p>
         ${
