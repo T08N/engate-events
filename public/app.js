@@ -559,13 +559,26 @@ function bindDetails(aggregate) {
   const show = (tab) => {
     for (const button of buttons) button.classList.toggle("active", button.dataset.tab === tab);
     document.querySelector("#detail-table").innerHTML = detailTable(tab, aggregate);
+    document.querySelector("#detail-table").classList.toggle("is-fit", tab === "rows");
     const note = document.querySelector("#detail-note");
     note.textContent = tab === "rows" && aggregate.rowTotal > aggregate.rows.length
       ? `明細は古い順に ${aggregate.rows.length} 件まで表示しています。全 ${aggregate.rowTotal} 件は CSV に入っています。`
       : `${aggregate.summary.gifters} 人が ${aggregate.summary.recipients} 先へ、${aggregate.summary.stamps} 種類のスタンプを送っています。`;
   };
   for (const button of buttons) button.addEventListener("click", () => show(button.dataset.tab));
+  document.querySelector("#detail-table").addEventListener("click", (event) => {
+    const name = event.target.closest(".event-name");
+    if (!name) return;
+    const open = name.classList.toggle("is-open");
+    name.setAttribute("aria-expanded", open ? "true" : "false");
+  });
   show("recipient");
+}
+
+function eventNameCell(title) {
+  if (!title) return "";
+  if ([...title].length <= 16) return esc(title);
+  return `<button type="button" class="event-name" aria-expanded="false">${esc(title)}</button>`;
 }
 
 function detailTable(tab, aggregate) {
@@ -614,7 +627,7 @@ function detailTable(tab, aggregate) {
       const titles = row.eventTitles?.length ? row.eventTitles : [];
       return [
         fmt(row.createdAt),
-        ...eventHeaders.map((_, index) => esc(titles[index] || "")),
+        ...eventHeaders.map((_, index) => eventNameCell(titles[index] || "")),
         esc(row.gifterName),
         esc(row.recipientName),
         `<div class="name-cell">${row.stampImage ? `<img class="stamp" src="${esc(row.stampImage)}" alt="" />` : ""}<span>${esc(row.stampName)}</span></div>`,
@@ -622,12 +635,13 @@ function detailTable(tab, aggregate) {
       ];
     }),
     [eventHeaders.length + 4],
+    "fit",
   );
 }
 
-function table(headers, rows, numericIndexes = []) {
+function table(headers, rows, numericIndexes = [], layout = "") {
   const numeric = new Set(numericIndexes.length ? numericIndexes : headers.map((_, index) => index).filter((index) => index > 0));
-  return `<table>
+  return `<table class="${esc(layout)}">
     <thead><tr>${headers.map((header, index) => `<th class="${numeric.has(index) ? "num" : ""}">${esc(header)}</th>`).join("")}</tr></thead>
     <tbody>
       ${rows
