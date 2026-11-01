@@ -242,7 +242,7 @@ function eventCard(event) {
         event.ranking
           ? `<div class="points-col">
         <strong>${Number(event.ranking.totalPoint).toLocaleString("ja-JP")}</strong>
-        <span>公式 ${event.ranking.count}人</span>
+        <span>${esc(event.ranking.label || `公式 ${event.ranking.count}人`)}</span>
       </div>`
           : ""
       }
@@ -312,7 +312,7 @@ function eventSection(title, events, community) {
     <div class="event-list">
       ${
         events.length
-          ? events.map((event) => eventCard({ ...event, community, ranking: null })).join("")
+          ? events.map((event) => eventCard({ ...event, community })).join("")
           : `<div class="empty">${esc(title)}のイベントはありません。</div>`
       }
     </div>`;

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { aggregateEvent, allGiftRows } from "./src/aggregate.js";
-import { advanceTimeline, ensureEventCopy, ensureRanking, ensureTeamEvents, loadHome, publicCommunity, publicEvent } from "./src/sync.js";
+import { advanceTimeline, ensureEventCopy, ensureRanking, ensureTeamEvents, loadHome, publicCommunity, publicEvent, rankingsForEvents } from "./src/sync.js";
 import * as store from "./src/store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -80,9 +80,12 @@ async function handleApi(req, res, url) {
     const slug = parts[2];
     if (!validSlug(slug)) return send(res, 400, { error: "チーム名が不正です" });
     const { community, events } = await ensureTeamEvents(slug, force);
+    const rankingById = await rankingsForEvents(slug, events, force);
     const groups = { open: [], upcoming: [], closed: [] };
     for (const event of events) {
       const view = publicEvent(event);
+      const ranking = rankingById.get(event.id);
+      if (ranking) view.ranking = ranking;
       if (view.status === "upcoming") groups.upcoming.push(view);
       else if (view.status === "open") groups.open.push(view);
       else groups.closed.push(view);

@@ -97,6 +97,28 @@ export async function ensureEventCopy(event) {
   }
 }
 
+export async function rankingsForEvents(slug, events, force = false) {
+  const targets = events.filter((event) => {
+    const status = eventStatus(event);
+    return status === "open" || status === "closed";
+  });
+  const rows = await mapPool(targets, 4, async (event) => {
+    try {
+      const ranking = await ensureRanking(slug, event.id, force);
+      return {
+        id: event.id,
+        totalPoint: ranking.totalPoint,
+        count: ranking.count,
+        label: eventStatus(event) === "closed" ? "総額" : "現在の合計",
+      };
+    } catch (error) {
+      console.error("ranking failed", event.id, error.message);
+      return { id: event.id, totalPoint: null, count: null, label: "" };
+    }
+  });
+  return new Map(rows.filter((row) => row.totalPoint != null).map((row) => [row.id, row]));
+}
+
 export async function ensureRanking(slug, eventId, force = false) {
   const cached = store.getRanking(eventId);
   if (!force && cached && fresh(cached.updatedAt, RANKING_TTL)) return cached;
