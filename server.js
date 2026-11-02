@@ -48,6 +48,62 @@ function validSlug(slug) {
   return typeof slug === "string" && /^[A-Za-z0-9_-]+$/.test(slug);
 }
 
+function csvLine(cells) {
+  return cells.map(csvEscape).join(",");
+}
+
+function summarizeStamps(rows) {
+  const map = new Map();
+  for (const row of rows) {
+    const name = row.stampName || "不明";
+    let bucket = map.get(name);
+    if (!bucket) bucket = { name, count: 0, points: 0, people: new Set() };
+    bucket.count += 1;
+    bucket.points += row.points || 0;
+    bucket.people.add(row.gifterId || row.gifterName);
+    map.set(name, bucket);
+  }
+  return [...map.values()]
+    .map((bucket) => ({ ...bucket, gifters: bucket.people.size }))
+    .sort((a, b) => b.points - a.points || b.count - a.count || a.name.localeCompare(b.name, "ja"));
+}
+
+function summarizeGifterStamps(rows) {
+  const map = new Map();
+  for (const row of rows) {
+    const gifter = row.gifterName || "名称非公開";
+    const stamp = row.stampName || "不明";
+    const key = `${row.gifterId || gifter}\0${row.stampId || stamp}`;
+    let bucket = map.get(key);
+    if (!bucket) bucket = { gifter, stamp, count: 0, points: 0 };
+    bucket.count += 1;
+    bucket.points += row.points || 0;
+    map.set(key, bucket);
+  }
+  const list = [...map.values()];
+  const totals = new Map();
+  for (const item of list) totals.set(item.gifter, (totals.get(item.gifter) || 0) + item.points);
+  return list.sort(
+    (a, b) =>
+      (totals.get(b.gifter) || 0) - (totals.get(a.gifter) || 0) ||
+      a.gifter.localeCompare(b.gifter, "ja") ||
+      b.points - a.points ||
+      b.count - a.count,
+  );
+}
+
+function summaryLines(rows) {
+  const lines = ["", csvLine(["スタンプごとの集計"]), csvLine(["スタンプ", "件数", "ギフティング者", "合計ポイント"])];
+  for (const stamp of summarizeStamps(rows)) {
+    lines.push(csvLine([stamp.name, stamp.count, stamp.gifters, stamp.points]));
+  }
+  lines.push("", csvLine(["ギフティング者のスタンプ"]), csvLine(["ギフティング者", "スタンプ", "件数", "ポイント"]));
+  for (const item of summarizeGifterStamps(rows)) {
+    lines.push(csvLine([item.gifter, item.stamp, item.count, item.points]));
+  }
+  return lines;
+}
+
 function csvEscape(value) {
   const text = String(value ?? "");
   if (/[",\n]/.test(text)) return `"${text.replaceAll('"', '""')}"`;
@@ -154,7 +210,7 @@ async function handleApi(req, res, url) {
           .join(","),
       );
     }
-    const body = `\uFEFF${lines.join("\n")}`;
+    const body = `\uFEFF${lines.concat(summaryLines(rows)).join("\n")}`;
     return send(res, 200, body, {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="engate-event-${eventId}.csv"`,
