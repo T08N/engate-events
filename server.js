@@ -97,9 +97,9 @@ function summaryLines(rows) {
   for (const stamp of summarizeStamps(rows)) {
     lines.push(csvLine([stamp.name, stamp.count, stamp.gifters, stamp.points]));
   }
-  lines.push("", csvLine(["ギフティング者のスタンプ"]), csvLine(["ギフティング者", "スタンプ", "件数", "ポイント"]));
+  lines.push("", csvLine(["ギフティング者のスタンプ"]), csvLine(["ギフティング者", "スタンプ", "件数"]));
   for (const item of summarizeGifterStamps(rows)) {
-    lines.push(csvLine([item.gifter, item.stamp, item.count, item.points]));
+    lines.push(csvLine([item.gifter, item.stamp, item.count]));
   }
   return lines;
 }
