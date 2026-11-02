@@ -150,7 +150,7 @@ function drawHome() {
     </div>
     ${missingCommunityIds?.length ? `<p class="meta">チーム一覧に無い開催コミュニティが ${missingCommunityIds.length} 件あります。</p>` : ""}
     <div class="event-list">
-      ${openEvents.length ? openEvents.map(eventCard).join("") : `<div class="empty">今、公開されている開催中イベントはありません。</div>`}
+      ${openEvents.length ? openEvents.map((event) => eventCard(event, { reward: true })).join("") : `<div class="empty">今、公開されている開催中イベントはありません。</div>`}
     </div>
     <div class="section-head">
       <div>
@@ -251,7 +251,7 @@ function searchResultsHtml(data) {
     ? `<p class="picker-note">${data.checked} / ${data.total} チームを確認しました。続きを探しています。</p>`
     : `<p class="picker-note">${data.events.length}件見つかりました。</p>`;
   const list = data.events.length
-    ? `<div class="event-list">${data.events.map((event) => eventCard(event)).join("")}</div>`
+    ? `<div class="event-list">${data.events.map((event) => eventCard(event, { reward: true })).join("")}</div>`
     : data.scanning
       ? ""
       : `<div class="empty">一致するイベントはありません。</div>`;
@@ -336,8 +336,23 @@ function teamCards(communities) {
     .join("");
 }
 
-function eventCard(event) {
+function rewardLine(description) {
+  const prize = /アクリル|チェキ|写真|ボイス|年賀状|キーホルダー|NFT|サイン|花束|画像|カード|動画|色紙|ポスター|壁紙|クッキー|メッセージ|絵馬|シール|グッズ/;
+  const skip = /ご注意|転売|お一人様|ご了承|お忘れ|通信環境|スクリーンショット|ハッシュタグ|X投稿|イメージ|対象外|追加で|場合|ただし/;
+  const lines = String(description || "")
+    .split(/\n+/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter((line) => line.length >= 8 && !skip.test(line) && !line.startsWith("※"));
+  const chosen = lines.find((line) => prize.test(line) && /プレゼント|お送り|お届け|ご用意/.test(line)) || lines.find((line) => prize.test(line) && line.length <= 80) || "";
+  if (!chosen) return "";
+  const clean = chosen.replace(/[【】『』「」]/g, "").replace(/^[①②③④⑤◆■・]+\s*/, "").replace(/^内容[:：]\s*/, "").trim();
+  const chars = [...clean];
+  return chars.length > 52 ? `${chars.slice(0, 52).join("")}…` : clean;
+}
+
+function eventCard(event, options = {}) {
   const community = event.community;
+  const reward = options.reward ? rewardLine(event.description) : "";
   return `
     <a class="event-card" href="/teams/${esc(event.slug)}/events/${event.id}" style="border-left-color:${esc(community?.color || "#e4570e")}">
       <img class="cover" src="${esc(event.image)}" alt="" />
@@ -349,6 +364,7 @@ function eventCard(event) {
         </div>
         <h3>${esc(event.title)}</h3>
         <div class="meta">${fmt(event.startedAt)} 〜 ${fmt(event.endedAt)}</div>
+        ${reward ? `<p class="reward-line"><span>リワード</span>${esc(reward)}</p>` : ""}
       </div>
       ${
         event.ranking
