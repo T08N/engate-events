@@ -192,6 +192,7 @@ h2 { font-size: 28px; margin: 0; }
 }
 .reward-line ul { margin: 0; padding-left: 1.15em; }
 .reward-line li { margin: 0; font-size: 13px; line-height: 1.45; }
+.reward-line b { margin-right: 6px; font-variant-numeric: tabular-nums; }
 .meta { color: var(--muted); font-size: 13px; }
 .team-line { display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .team-line img, .avatar, .stamp {
