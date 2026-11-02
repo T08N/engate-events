@@ -3,6 +3,9 @@ const app = document.querySelector("#app");
 const state = {
   home: null,
   teamQuery: "",
+  pickerTab: "team",
+  eventQuery: "",
+  searchToken: 0,
 };
 
 document.body.addEventListener("click", (event) => {
@@ -127,16 +130,7 @@ function drawHome() {
   const totalPoints = openEvents.reduce((sum, event) => sum + (event.ranking?.totalPoint || 0), 0);
   app.innerHTML = `
     ${stepsHtml("team", { team: "/" })}
-    <section class="picker" id="team-picker">
-      <p class="eyebrow">TEAM</p>
-      <h2>チームを選ぶ</h2>
-      <p class="lede">チームを選ぶと、次のページでイベントを選べます。選んだイベントの集計が開きます。</p>
-      <div class="picker-row">
-        <input class="search" id="picker-search" placeholder="チーム名で絞り込む" />
-        <select class="select" id="picker-select" aria-label="チーム"></select>
-        <button class="button" id="picker-next" type="button">イベントを選ぶ</button>
-      </div>
-    </section>
+    ${pickerHtml()}
     <section class="hero">
       <p class="eyebrow">OPEN EVENTS</p>
       <h1>開催中のイベントを、<br>ギフト単位で残す。</h1>
@@ -172,8 +166,126 @@ function drawHome() {
     state.teamQuery = search.value;
     document.querySelector("#team-grid").innerHTML = teamCards(communities);
   });
-  bindTeamPicker(communities);
+  bindPicker(communities);
   if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
+}
+
+function pickerHtml() {
+  const team = state.pickerTab === "team";
+  return `
+    <section class="picker" id="team-picker">
+      <div class="tabs picker-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected="${team}" data-picker-tab="team" class="${team ? "active" : ""}">チーム</button>
+        <button type="button" role="tab" aria-selected="${!team}" data-picker-tab="event" class="${team ? "" : "active"}">イベント</button>
+      </div>
+      ${team ? teamPickerHtml() : eventPickerHtml()}
+    </section>`;
+}
+
+function teamPickerHtml() {
+  return `
+    <p class="eyebrow">TEAM</p>
+    <h2>チームを選ぶ</h2>
+    <p class="lede">チームを選ぶと、次のページでイベントを選べます。選んだイベントの集計が開きます。</p>
+    <div class="picker-row">
+      <input class="search" id="picker-search" placeholder="チーム名で絞り込む" />
+      <select class="select" id="picker-select" aria-label="チーム"></select>
+      <button class="button" id="picker-next" type="button">イベントを選ぶ</button>
+    </div>`;
+}
+
+function eventPickerHtml() {
+  const themes = ["誕生日", "クリスマス"];
+  return `
+    <p class="eyebrow">EVENT</p>
+    <h2>イベントを探す</h2>
+    <p class="lede">誕生日やクリスマスなど、言葉で各チームのイベントをまとめて探せます。</p>
+    <div class="picker-row event-search">
+      <input class="search" id="event-search" placeholder="誕生日、クリスマスなど" value="${esc(state.eventQuery)}" />
+      <button class="button" id="event-search-go" type="button">検索</button>
+    </div>
+    <div class="theme-row">
+      ${themes
+        .map(
+          (theme) =>
+            `<button type="button" data-theme="${esc(theme)}" class="${state.eventQuery === theme ? "active" : ""}">${esc(theme)}</button>`,
+        )
+        .join("")}
+    </div>
+    <div id="event-search-results"></div>`;
+}
+
+function bindPicker(communities) {
+  for (const tab of document.querySelectorAll("[data-picker-tab]")) {
+    tab.addEventListener("click", () => {
+      const next = tab.dataset.pickerTab;
+      if (next === state.pickerTab) return;
+      state.pickerTab = next;
+      state.searchToken += 1;
+      drawHome();
+    });
+  }
+  if (state.pickerTab === "team") bindTeamPicker(communities);
+  else bindEventSearch();
+}
+
+function bindEventSearch() {
+  const input = document.querySelector("#event-search");
+  const go = document.querySelector("#event-search-go");
+  const run = () => runEventSearch(input.value);
+  go.addEventListener("click", run);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") run();
+  });
+  for (const button of document.querySelectorAll("[data-theme]")) {
+    button.addEventListener("click", () => {
+      input.value = button.dataset.theme;
+      runEventSearch(button.dataset.theme);
+    });
+  }
+  document.querySelector("#event-search-results").innerHTML = `<p class="picker-note">言葉を入れて検索してください。全チームの開催中と過去のイベントが対象です。</p>`;
+}
+
+function searchResultsHtml(data) {
+  const note = data.scanning
+    ? `<p class="picker-note">${data.checked} / ${data.total} チームを確認しました。続きを探しています。</p>`
+    : `<p class="picker-note">${data.events.length}件見つかりました。</p>`;
+  const list = data.events.length
+    ? `<div class="event-list">${data.events.map((event) => eventCard(event)).join("")}</div>`
+    : data.scanning
+      ? ""
+      : `<div class="empty">一致するイベントはありません。</div>`;
+  const more = !data.scanning && data.truncated ? `<p class="picker-note">開催中を優先して ${data.events.length} 件まで表示しています。</p>` : "";
+  return note + list + more;
+}
+
+async function runEventSearch(query) {
+  const token = ++state.searchToken;
+  state.eventQuery = query.trim();
+  for (const button of document.querySelectorAll("[data-theme]")) {
+    button.classList.toggle("active", button.dataset.theme === state.eventQuery);
+  }
+  const box = document.querySelector("#event-search-results");
+  if (!box) return;
+  if (!state.eventQuery) {
+    box.innerHTML = `<p class="picker-note">言葉を入れて検索してください。</p>`;
+    return;
+  }
+  box.innerHTML = `<p class="loading">各チームのイベントを探しています。</p>`;
+  try {
+    for (let guard = 0; guard < 80; guard += 1) {
+      const data = await api(`/api/events?q=${encodeURIComponent(state.eventQuery)}`);
+      if (token !== state.searchToken) return;
+      const current = document.querySelector("#event-search-results");
+      if (!current) return;
+      current.innerHTML = searchResultsHtml(data);
+      if (!data.scanning) return;
+    }
+  } catch (error) {
+    if (token !== state.searchToken) return;
+    const current = document.querySelector("#event-search-results");
+    if (current) current.innerHTML = `<div class="error">${esc(error.message)}</div>`;
+  }
 }
 
 function bindTeamPicker(communities) {

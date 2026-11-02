@@ -104,7 +104,19 @@ main { padding-bottom: 64px; }
   align-items: center;
   margin-top: 12px;
 }
-.picker-row .search, .picker-row .select { width: 100%; }
+.picker-row.event-search { grid-template-columns: minmax(180px, 1fr) auto; }
+.picker-tabs { margin-bottom: 12px; }
+.theme-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.theme-row button {
+  border: 1px solid var(--line);
+  background: #faf7f1;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 700;
+}
+.theme-row button.active { background: var(--ink); color: white; border-color: var(--ink); }
+.picker-note { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
+.picker .event-list { margin-top: 14px; }
 .hero { display: grid; gap: 8px; margin: 8px 0 28px; }
 .eyebrow {
   margin: 0;

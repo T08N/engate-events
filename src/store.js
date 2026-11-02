@@ -277,6 +277,44 @@ export function teamFetchedAt(slug) {
   return db.prepare("SELECT fetched_at FROM team_sync WHERE slug = ?").get(slug)?.fetched_at ?? null;
 }
 
+export function touchTeam(slug) {
+  db.prepare(
+    `INSERT INTO team_sync (slug, fetched_at) VALUES (?, ?)
+     ON CONFLICT(slug) DO UPDATE SET fetched_at = excluded.fetched_at`,
+  ).run(slug, nowIso());
+}
+
+export function searchEvents(terms, limit = 61) {
+  const cleaned = [...new Set(terms.map((term) => String(term || "").trim()).filter(Boolean))];
+  if (!cleaned.length) return [];
+  const clauses = cleaned.map(() => "e.title LIKE ? ESCAPE '\\'").join(" OR ");
+  const params = cleaned.map((term) => `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`);
+  return db
+    .prepare(
+      `SELECT e.*, c.id AS community_row_id, c.name AS community_name, c.logo AS community_logo,
+              c.color AS community_color, c.followers AS community_followers
+       FROM events e
+       LEFT JOIN communities c ON c.slug = e.slug
+       WHERE ${clauses}
+       ORDER BY (e.is_open = 1 AND e.is_future = 0) DESC, e.is_future DESC, e.started_at DESC
+       LIMIT ?`,
+    )
+    .all(...params, limit)
+    .map((row) => ({
+      ...hydrateEvent(row),
+      community: row.community_name
+        ? {
+            id: row.community_row_id,
+            slug: row.slug,
+            name: row.community_name,
+            logo: row.community_logo || "",
+            color: row.community_color || "",
+            followers: row.community_followers || 0,
+          }
+        : null,
+    }));
+}
+
 export function saveRanking(eventId, ranking) {
   const stamp = nowIso();
   db.prepare(`

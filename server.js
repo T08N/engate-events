@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { aggregateEvent, allGiftRows } from "./src/aggregate.js";
-import { advanceTimeline, ensureEventCopy, ensureRanking, ensureTeamEvents, loadHome, publicCommunity, publicEvent, rankingsForEvents } from "./src/sync.js";
+import { advanceTimeline, ensureEventCopy, ensureRanking, ensureTeamEvents, loadHome, publicCommunity, publicEvent, rankingsForEvents, searchEvents } from "./src/sync.js";
 import * as store from "./src/store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -130,6 +130,13 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/home") {
     return send(res, 200, await loadHome(force));
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/events") {
+    const query = (url.searchParams.get("q") || "").trim();
+    if (!query) return send(res, 200, { events: [], truncated: false, scanning: false, checked: 0, total: 0 });
+    if (query.length > 40) return send(res, 400, { error: "検索語が長すぎます" });
+    return send(res, 200, await searchEvents(query, force));
   }
 
   if (req.method === "GET" && parts[0] === "api" && parts[1] === "teams" && parts.length === 3) {

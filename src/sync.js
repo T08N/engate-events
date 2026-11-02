@@ -84,6 +84,64 @@ export async function ensureTeamEvents(slug, force = false) {
   return { community: store.communityBySlug(slug), events: store.listEvents(slug) };
 }
 
+const SEARCH_THEMES = [
+  ["誕生日", "バースデー", "誕生祭", "birthday"],
+  ["クリスマス", "christmas", "xmas", "x'mas"],
+];
+const SEARCH_BATCH = 8;
+
+function searchTerms(query) {
+  const q = query.trim().toLocaleLowerCase("ja");
+  const group = SEARCH_THEMES.find((words) =>
+    words.some((word) => {
+      const alias = word.toLocaleLowerCase("ja");
+      return alias === q || (q.length >= 2 && (q.includes(alias) || (alias.includes(q) && q.length >= 3)));
+    }),
+  );
+  return group || [query.trim()];
+}
+
+function bySearchOrder(a, b) {
+  const rank = { open: 0, upcoming: 1, closed: 2 };
+  const byStatus = rank[a.status] - rank[b.status];
+  if (byStatus) return byStatus;
+  if (a.status === "closed") return String(b.startedAt).localeCompare(String(a.startedAt));
+  return String(a.endedAt || a.startedAt).localeCompare(String(b.endedAt || b.startedAt));
+}
+
+export function searchEvents(query, force = false) {
+  return withLock("event-search", () => findEvents(query, force));
+}
+
+async function findEvents(query, force) {
+  const communities = (await ensureCommunities(force)).filter((community) => !isTestCommunity(community));
+  const needsSync = (community) => force || !fresh(store.teamFetchedAt(community.slug), TEAM_TTL);
+  const batch = communities.filter(needsSync).slice(0, SEARCH_BATCH);
+  await mapPool(batch, SEARCH_BATCH, async (community) => {
+    try {
+      await ensureTeamEvents(community.slug, force);
+    } catch (error) {
+      console.error("event search sync failed", community.slug, error.message);
+      store.touchTeam(community.slug);
+    }
+  });
+  const pending = communities.filter(needsSync);
+  const rows = store.searchEvents(searchTerms(query), 81);
+  const truncated = rows.length > 80;
+  const events = rows.slice(0, 80).map((event) => ({
+    ...publicEvent(event),
+    community: publicCommunity(event.community),
+  }));
+  events.sort(bySearchOrder);
+  return {
+    events,
+    truncated,
+    scanning: pending.length > 0,
+    checked: communities.length - pending.length,
+    total: communities.length,
+  };
+}
+
 export async function ensureEventCopy(event) {
   if (!event || event.description != null) return event;
   try {
