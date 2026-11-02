@@ -336,23 +336,54 @@ function teamCards(communities) {
     .join("");
 }
 
-function rewardLine(description) {
-  const prize = /アクリル|チェキ|写真|ボイス|年賀状|キーホルダー|NFT|サイン|花束|画像|カード|動画|色紙|ポスター|壁紙|クッキー|メッセージ|絵馬|シール|グッズ/;
-  const skip = /ご注意|転売|お一人様|ご了承|お忘れ|通信環境|スクリーンショット|ハッシュタグ|X投稿|イメージ|対象外|追加で|場合|ただし/;
-  const lines = String(description || "")
-    .split(/\n+/)
-    .map((line) => line.replace(/\s+/g, " ").trim())
-    .filter((line) => line.length >= 8 && !skip.test(line) && !line.startsWith("※"));
-  const chosen = lines.find((line) => prize.test(line) && /プレゼント|お送り|お届け|ご用意/.test(line)) || lines.find((line) => prize.test(line) && line.length <= 80) || "";
-  if (!chosen) return "";
-  const clean = chosen.replace(/[【】『』「」]/g, "").replace(/^[①②③④⑤◆■・]+\s*/, "").replace(/^内容[:：]\s*/, "").trim();
-  const chars = [...clean];
-  return chars.length > 52 ? `${chars.slice(0, 52).join("")}…` : clean;
+function rewardItems(description) {
+  const kinds = ["アクリルキーホルダー", "アクリルスタンド", "キーホルダー", "NFTコレクション", "ボイスメッセージ", "年賀状", "チェキ", "デジタル画像", "デジタル写真", "写真", "画像", "動画", "色紙", "花束", "シール", "絵馬", "ポスター", "壁紙", "クッキー", "メッセージ", "カード", "グッズ", "サイン", "NFT"];
+  const prize = new RegExp(kinds.join("|"));
+  const noise = /ご注意|転売|お一人様|ご了承|ハッシュタグ|X投稿|イメージ|対象外|場合|ただし|PTS|pt相当|ポイント|スタンプ|期間|エントリー/;
+  const text = String(description || "");
+  let pieces = [];
+  for (const match of text.matchAll(/[「『【]([^」』】]{2,48})[」』】]/g)) {
+    for (const part of match[1].split(/[+＋、]/)) {
+      const name = part.replace(/ギフティング対象選手(?:から|の)/, "").replace(/\s+/g, "").replace(/\p{Extended_Pictographic}/gu, "").trim();
+      if (name && prize.test(name) && !noise.test(name) && [...name].length <= 28) pieces.push(name);
+    }
+  }
+  if (!pieces.length) {
+    for (const line of text.split(/\n+/)) {
+      const clean = line.replace(/\s+/g, " ").trim();
+      if (clean.length < 6 || noise.test(clean) || clean.startsWith("※") || !prize.test(clean)) continue;
+      if (!/プレゼント|お送り|お届け|ご用意|GET/.test(clean)) continue;
+      const hits = kinds.map((kind) => ({ kind, index: clean.indexOf(kind) })).filter((hit) => hit.index >= 0).sort((a, b) => a.index - b.index);
+      if (!hits.length) continue;
+      const { kind, index } = hits[0];
+      const after = clean.slice(index + kind.length);
+      const signed = after.match(/^入り[ァ-ヶー一-龥]{1,8}/);
+      const more = signed ? "" : after.match(/^や([ァ-ヶー一-龥A-Za-z]{1,8})/);
+      const phrase = signed ? kind + signed[0] : more && prize.test(more[1]) ? `${kind}や${more[1]}` : kind;
+      const of = clean.slice(0, index).match(/((?:限定|オリジナル|直筆)?[ァ-ヶー一-龥A-Za-z0-9]{0,12}の)$/);
+      pieces.push(`${of ? of[1] : ""}${phrase}`);
+    }
+  }
+  const unique = [];
+  for (const item of pieces) {
+    const key = kinds.find((kind) => item.includes(kind)) || item;
+    const index = unique.findIndex((kept) => {
+      const keptKey = kinds.find((kind) => kept.includes(kind)) || kept;
+      return kept.includes(item) || item.includes(kept) || keptKey === key;
+    });
+    if (index >= 0) {
+      if ([...item].length > [...unique[index]].length) unique[index] = item;
+      continue;
+    }
+    unique.push(item);
+    if (unique.length === 4) break;
+  }
+  return unique;
 }
 
 function eventCard(event, options = {}) {
   const community = event.community;
-  const reward = options.reward ? rewardLine(event.description) : "";
+  const rewards = options.reward ? rewardItems(event.description) : [];
   return `
     <a class="event-card" href="/teams/${esc(event.slug)}/events/${event.id}" style="border-left-color:${esc(community?.color || "#e4570e")}">
       <img class="cover" src="${esc(event.image)}" alt="" />
@@ -364,7 +395,11 @@ function eventCard(event, options = {}) {
         </div>
         <h3>${esc(event.title)}</h3>
         <div class="meta">${fmt(event.startedAt)} 〜 ${fmt(event.endedAt)}</div>
-        ${reward ? `<p class="reward-line"><span>リワード</span>${esc(reward)}</p>` : ""}
+        ${
+          rewards.length
+            ? `<div class="reward-line"><span>リワード</span><ul>${rewards.map((item) => `<li>${esc(item)}</li>`).join("")}</ul></div>`
+            : ""
+        }
       </div>
       ${
         event.ranking

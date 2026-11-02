@@ -182,18 +182,16 @@ h2 { font-size: 28px; margin: 0; }
   background: var(--bg-2);
 }
 .event-card h3 { margin: 4px 0; font-size: 22px; line-height: 1.3; }
-.reward-line {
-  margin: 6px 0 0;
-  color: var(--ink);
-  font-size: 13px;
-  line-height: 1.5;
-}
+.reward-line { margin-top: 8px; }
 .reward-line span {
-  margin-right: 6px;
+  display: block;
+  margin-bottom: 2px;
   color: var(--accent-dark);
   font-size: 11px;
   font-weight: 700;
 }
+.reward-line ul { margin: 0; padding-left: 1.15em; }
+.reward-line li { margin: 0; font-size: 13px; line-height: 1.45; }
 .meta { color: var(--muted); font-size: 13px; }
 .team-line { display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .team-line img, .avatar, .stamp {
