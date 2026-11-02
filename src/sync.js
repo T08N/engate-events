@@ -86,7 +86,17 @@ export async function ensureTeamEvents(slug, force = false) {
 
 const SEARCH_THEMES = [
   ["誕生日", "バースデー", "誕生祭", "birthday"],
+  ["新年", "お正月", "正月", "年賀", "年始", "謹賀"],
+  ["バレンタイン", "valentine"],
+  ["ホワイトデー", "ホワイトデイ"],
+  ["七夕"],
+  ["ハロウィン", "ハロウィーン", "halloween"],
   ["クリスマス", "christmas", "xmas", "x'mas"],
+  ["開幕"],
+  ["最終戦", "最終節"],
+  ["優勝"],
+  ["感謝祭", "大感謝"],
+  ["新加入", "新入団", "入団"],
 ];
 const SEARCH_BATCH = 8;
 

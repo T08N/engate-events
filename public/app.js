@@ -195,13 +195,13 @@ function teamPickerHtml() {
 }
 
 function eventPickerHtml() {
-  const themes = ["誕生日", "クリスマス"];
+  const themes = ["誕生日", "新年", "バレンタイン", "ホワイトデー", "七夕", "ハロウィン", "クリスマス", "開幕", "最終戦", "優勝", "感謝祭", "新加入"];
   return `
     <p class="eyebrow">EVENT</p>
     <h2>イベントを探す</h2>
-    <p class="lede">誕生日やクリスマスなど、言葉で各チームのイベントをまとめて探せます。</p>
+    <p class="lede">季節のイベントや、開幕・優勝など、言葉で各チームのイベントをまとめて探せます。</p>
     <div class="picker-row event-search">
-      <input class="search" id="event-search" placeholder="誕生日、クリスマスなど" value="${esc(state.eventQuery)}" />
+      <input class="search" id="event-search" placeholder="ハロウィン、開幕など" value="${esc(state.eventQuery)}" />
       <button class="button" id="event-search-go" type="button">検索</button>
     </div>
     <div class="theme-row">
