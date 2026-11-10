@@ -72,10 +72,11 @@ function summarizeGifterStamps(rows) {
   const map = new Map();
   for (const row of rows) {
     const gifter = row.gifterName || "名称非公開";
+    const recipient = row.recipientName || "不明";
     const stamp = row.stampName || "不明";
-    const key = `${row.gifterId || gifter}\0${row.stampId || stamp}`;
+    const key = `${row.gifterId || gifter}\0${row.recipientId || recipient}\0${row.stampId || stamp}`;
     let bucket = map.get(key);
-    if (!bucket) bucket = { gifter, stamp, count: 0, points: 0 };
+    if (!bucket) bucket = { gifter, recipient, stamp, count: 0, points: 0 };
     bucket.count += 1;
     bucket.points += row.points || 0;
     map.set(key, bucket);
@@ -87,6 +88,7 @@ function summarizeGifterStamps(rows) {
     (a, b) =>
       (totals.get(b.gifter) || 0) - (totals.get(a.gifter) || 0) ||
       a.gifter.localeCompare(b.gifter, "ja") ||
+      a.recipient.localeCompare(b.recipient, "ja") ||
       b.points - a.points ||
       b.count - a.count,
   );
@@ -97,9 +99,9 @@ function summaryLines(rows) {
   for (const stamp of summarizeStamps(rows)) {
     lines.push(csvLine([stamp.name, stamp.count, stamp.gifters, stamp.points]));
   }
-  lines.push("", csvLine(["ギフティング者のスタンプ"]), csvLine(["ギフティング者", "スタンプ", "件数"]));
+  lines.push("", csvLine(["ギフティング者のスタンプ"]), csvLine(["ギフティング者", "ギフト先", "スタンプ", "件数"]));
   for (const item of summarizeGifterStamps(rows)) {
-    lines.push(csvLine([item.gifter, item.stamp, item.count]));
+    lines.push(csvLine([item.gifter, item.recipient, item.stamp, item.count]));
   }
   return lines;
 }
