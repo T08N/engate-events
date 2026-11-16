@@ -5,6 +5,8 @@ const state = {
   teamQuery: "",
   pickerTab: "team",
   eventQuery: "",
+  eventSort: "points",
+  lastSearch: null,
   searchToken: 0,
 };
 
@@ -199,9 +201,14 @@ function eventPickerHtml() {
   return `
     <p class="eyebrow">EVENT</p>
     <h2>イベントを探す</h2>
-    <p class="lede">季節のイベントや、開幕・優勝など、言葉で各チームのイベントをまとめて探せます。</p>
+    <p class="lede">言葉に合うイベントを、全部出します。ギフティング総額や人数を選ぶと、多い順に上から並びます。季節イベントはスプレッドシートでも保存できます。</p>
     <div class="picker-row event-search">
       <input class="search" id="event-search" placeholder="ハロウィン、開幕など" value="${esc(state.eventQuery)}" />
+      <select class="select sort-select" id="event-sort" aria-label="並べ替え">
+        <option value="points" ${state.eventSort === "points" ? "selected" : ""}>ギフティング総額</option>
+        <option value="people" ${state.eventSort === "people" ? "selected" : ""}>ギフティング人数</option>
+        <option value="start" ${state.eventSort === "start" ? "selected" : ""}>開始日</option>
+      </select>
       <button class="button" id="event-search-go" type="button">検索</button>
     </div>
     <div class="theme-row">
@@ -211,6 +218,10 @@ function eventPickerHtml() {
             `<button type="button" data-theme="${esc(theme)}" class="${state.eventQuery === theme ? "active" : ""}">${esc(theme)}</button>`,
         )
         .join("")}
+    </div>
+    <div class="download-row">
+      <a class="button-ghost" id="season-download" href="/api/events.xlsx?themes=1&amp;sort=${esc(state.eventSort || "points")}" download>季節イベントをまとめてダウンロード</a>
+      <p class="picker-note">12の季節・テーマを1つのファイルにします。初めてのときは総額の読み込みに時間がかかります。</p>
     </div>
     <div id="event-search-results"></div>`;
 }
@@ -237,6 +248,15 @@ function bindEventSearch() {
   input.addEventListener("keydown", (event) => {
     if (event.key === "Enter") run();
   });
+  const sort = document.querySelector("#event-sort");
+  sort.value = state.eventSort;
+  sort.addEventListener("change", () => {
+    state.eventSort = sort.value;
+    const season = document.querySelector("#season-download");
+    if (season) season.href = `/api/events.xlsx?themes=1&sort=${encodeURIComponent(state.eventSort)}`;
+    const box = document.querySelector("#event-search-results");
+    if (state.lastSearch && box) box.innerHTML = searchResultsHtml(state.lastSearch);
+  });
   for (const button of document.querySelectorAll("[data-theme]")) {
     button.addEventListener("click", () => {
       input.value = button.dataset.theme;
@@ -246,17 +266,52 @@ function bindEventSearch() {
   document.querySelector("#event-search-results").innerHTML = `<p class="picker-note">言葉を入れて検索してください。全チームの開催中と過去のイベントが対象です。</p>`;
 }
 
+function sortValue(event, key) {
+  if (key === "people") return event.ranking ? Number(event.ranking.count) || 0 : null;
+  if (key === "start") return event.startedAt || null;
+  return event.ranking ? Number(event.ranking.totalPoint) || 0 : null;
+}
+
+function sortEvents(events) {
+  const key = state.eventSort || "points";
+  const tie = key === "people" ? "points" : "people";
+  return [...events].sort((a, b) => {
+    const av = sortValue(a, key);
+    const bv = sortValue(b, key);
+    if ((av == null) !== (bv == null)) return av == null ? 1 : -1;
+    if (av !== bv) return typeof av === "number" ? bv - av : String(bv).localeCompare(String(av));
+    const at = sortValue(a, tie);
+    const bt = sortValue(b, tie);
+    if ((at == null) !== (bt == null)) return at == null ? 1 : -1;
+    if (at !== bt) return typeof at === "number" ? bt - at : String(bt).localeCompare(String(at));
+    return String(b.startedAt || "").localeCompare(String(a.startedAt || ""));
+  });
+}
+
+function sortNote(key) {
+  if (key === "people") return "ギフティング人数の多い順";
+  if (key === "start") return "開始日の新しい順";
+  return "ギフティング総額の多い順";
+}
+
 function searchResultsHtml(data) {
-  const note = data.scanning
-    ? `<p class="picker-note">${data.checked} / ${data.total} チームを確認しました。続きを探しています。</p>`
-    : `<p class="picker-note">${data.events.length}件見つかりました。</p>`;
-  const list = data.events.length
-    ? `<div class="event-list">${data.events.map((event) => eventCard(event, { reward: true })).join("")}</div>`
+  const events = sortEvents(data.events);
+  const ranked = events.filter((event) => event.ranking).length;
+  let note = `${events.length}件。${sortNote(state.eventSort)}です。`;
+  if (data.scanning) note = `${data.checked} / ${data.total} チームを確認しました。いま ${events.length} 件。続きを探しています。`;
+  else if (data.rankingPending) note = `${events.length}件あります。ギフティング総額と人数を読み込んでいます（${ranked} / ${events.length}）。`;
+  const ready = !data.scanning && !data.rankingPending && events.length;
+  const download = ready
+    ? `<p class="download-row"><a class="button-ghost" href="/api/events.xlsx?q=${encodeURIComponent(state.eventQuery)}&amp;sort=${encodeURIComponent(state.eventSort || "points")}" download>この結果をスプレッドシートでダウンロード</a></p>`
+    : data.scanning || data.rankingPending
+      ? `<p class="picker-note">読み込みが終わると、この結果をスプレッドシートで保存できます。</p>`
+      : "";
+  const list = events.length
+    ? `<div class="event-list">${events.map((event) => eventCard(event, { reward: true })).join("")}</div>`
     : data.scanning
       ? ""
       : `<div class="empty">一致するイベントはありません。</div>`;
-  const more = !data.scanning && data.truncated ? `<p class="picker-note">開催中を優先して ${data.events.length} 件まで表示しています。</p>` : "";
-  return note + list + more;
+  return `<p class="picker-note">${note}</p>${download}${list}`;
 }
 
 async function runEventSearch(query) {
@@ -271,15 +326,17 @@ async function runEventSearch(query) {
     box.innerHTML = `<p class="picker-note">言葉を入れて検索してください。</p>`;
     return;
   }
+  state.lastSearch = null;
   box.innerHTML = `<p class="loading">各チームのイベントを探しています。</p>`;
   try {
-    for (let guard = 0; guard < 80; guard += 1) {
+    for (let guard = 0; guard < 400; guard += 1) {
       const data = await api(`/api/events?q=${encodeURIComponent(state.eventQuery)}`);
       if (token !== state.searchToken) return;
       const current = document.querySelector("#event-search-results");
       if (!current) return;
+      state.lastSearch = data;
       current.innerHTML = searchResultsHtml(data);
-      if (!data.scanning) return;
+      if (!data.scanning && !data.rankingPending) return;
     }
   } catch (error) {
     if (token !== state.searchToken) return;
@@ -429,7 +486,8 @@ function eventCard(event, options = {}) {
         event.ranking
           ? `<div class="points-col">
         <strong>${Number(event.ranking.totalPoint).toLocaleString("ja-JP")}</strong>
-        <span>${esc(event.ranking.label || `公式 ${event.ranking.count}人`)}</span>
+        <span>総額</span>
+        <span>${Number(event.ranking.count || 0).toLocaleString("ja-JP")}人</span>
       </div>`
           : ""
       }

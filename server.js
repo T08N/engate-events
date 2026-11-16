@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { aggregateEvent, allGiftRows } from "./src/aggregate.js";
-import { advanceTimeline, ensureEventCopy, ensureRanking, ensureTeamEvents, loadHome, publicCommunity, publicEvent, rankingsForEvents, searchEvents } from "./src/sync.js";
+import { advanceTimeline, collectSearch, ensureEventCopy, ensureRanking, ensureTeamEvents, loadHome, publicCommunity, publicEvent, rankingsForEvents, searchEvents, seasonalQueries } from "./src/sync.js";
+import { sortEvents, workbookForGroups } from "./src/sheet.js";
 import * as store from "./src/store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -136,9 +137,27 @@ async function handleApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/events") {
     const query = (url.searchParams.get("q") || "").trim();
-    if (!query) return send(res, 200, { events: [], truncated: false, scanning: false, checked: 0, total: 0 });
+    if (!query) return send(res, 200, { events: [], scanning: false, rankingPending: false, checked: 0, total: 0 });
     if (query.length > 40) return send(res, 400, { error: "検索語が長すぎます" });
     return send(res, 200, await searchEvents(query, force));
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/events.xlsx") {
+    const sort = ["points", "people", "start"].includes(url.searchParams.get("sort")) ? url.searchParams.get("sort") : "points";
+    if (url.searchParams.get("themes") === "1") {
+      const groups = [];
+      for (const query of seasonalQueries()) {
+        const result = await collectSearch(query);
+        groups.push({ name: query, events: sortEvents(result?.events || [], sort) });
+      }
+      return send(res, 200, workbookForGroups(groups, sort), workbookHeaders("engate-季節イベント.xlsx"));
+    }
+    const query = (url.searchParams.get("q") || "").trim();
+    if (!query) return send(res, 400, { error: "検索語が必要です" });
+    if (query.length > 40) return send(res, 400, { error: "検索語が長すぎます" });
+    const result = await collectSearch(query);
+    const body = workbookForGroups([{ name: query, events: sortEvents(result?.events || [], sort) }], sort);
+    return send(res, 200, body, workbookHeaders(`engate-${query}.xlsx`));
   }
 
   if (req.method === "GET" && parts[0] === "api" && parts[1] === "teams" && parts.length === 3) {
@@ -244,6 +263,15 @@ async function handleApi(req, res, url) {
   }
 
   return send(res, 404, { error: "APIが見つかりません" });
+}
+
+function workbookHeaders(filename) {
+  const safe = String(filename).replace(/[\r\n"]/g, "").slice(0, 80);
+  const ascii = safe.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "_");
+  return {
+    "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "Content-Disposition": `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(safe)}`,
+  };
 }
 
 function serveStatic(res, pathname) {

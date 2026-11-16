@@ -111,16 +111,24 @@ function searchTerms(query) {
   return group || [query.trim()];
 }
 
-function bySearchOrder(a, b) {
-  const rank = { open: 0, upcoming: 1, closed: 2 };
-  const byStatus = rank[a.status] - rank[b.status];
-  if (byStatus) return byStatus;
-  if (a.status === "closed") return String(b.startedAt).localeCompare(String(a.startedAt));
-  return String(a.endedAt || a.startedAt).localeCompare(String(b.endedAt || b.startedAt));
-}
+const rankingFailed = new Set();
+const RANKING_BATCH = 16;
 
 export function searchEvents(query, force = false) {
   return withLock("event-search", () => findEvents(query, force));
+}
+
+export function seasonalQueries() {
+  return SEARCH_THEMES.map((words) => words[0]);
+}
+
+export async function collectSearch(query) {
+  let latest = null;
+  for (let guard = 0; guard < 500; guard += 1) {
+    latest = await searchEvents(query, false);
+    if (!latest.scanning && !latest.rankingPending) break;
+  }
+  return latest;
 }
 
 async function findEvents(query, force) {
@@ -136,17 +144,43 @@ async function findEvents(query, force) {
     }
   });
   const pending = communities.filter(needsSync);
-  const rows = store.searchEvents(searchTerms(query), 81);
-  const truncated = rows.length > 80;
-  const events = rows.slice(0, 80).map((event) => ({
-    ...publicEvent(event),
-    community: publicCommunity(event.community),
-  }));
-  events.sort(bySearchOrder);
+  const events = store.searchEvents(searchTerms(query)).map((event) => {
+    const view = {
+      ...publicEvent(event),
+      community: publicCommunity(event.community),
+    };
+    if (event.ranking) {
+      view.ranking = {
+        totalPoint: event.ranking.totalPoint,
+        count: event.ranking.count,
+        label: view.status === "closed" ? "総額" : "現在の合計",
+      };
+    }
+    return view;
+  });
+  const missingRank = events.filter(
+    (event) => event.status !== "upcoming" && !event.ranking && !rankingFailed.has(event.id),
+  );
+  await mapPool(missingRank.slice(0, RANKING_BATCH), 4, async (event) => {
+    try {
+      const ranking = await ensureRanking(event.slug, event.id, false);
+      event.ranking = {
+        totalPoint: ranking.totalPoint,
+        count: ranking.count,
+        label: event.status === "closed" ? "総額" : "現在の合計",
+      };
+    } catch (error) {
+      console.error("search ranking failed", event.id, error.message);
+      rankingFailed.add(event.id);
+    }
+  });
+  const rankingPending = events.some(
+    (event) => event.status !== "upcoming" && !event.ranking && !rankingFailed.has(event.id),
+  );
   return {
     events,
-    truncated,
     scanning: pending.length > 0,
+    rankingPending,
     checked: communities.length - pending.length,
     total: communities.length,
   };

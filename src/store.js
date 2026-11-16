@@ -284,7 +284,7 @@ export function touchTeam(slug) {
   ).run(slug, nowIso());
 }
 
-export function searchEvents(terms, limit = 61) {
+export function searchEvents(terms) {
   const cleaned = [...new Set(terms.map((term) => String(term || "").trim()).filter(Boolean))];
   if (!cleaned.length) return [];
   const clauses = cleaned.map(() => "e.title LIKE ? ESCAPE '\\'").join(" OR ");
@@ -292,14 +292,15 @@ export function searchEvents(terms, limit = 61) {
   return db
     .prepare(
       `SELECT e.*, c.id AS community_row_id, c.name AS community_name, c.logo AS community_logo,
-              c.color AS community_color, c.followers AS community_followers
+              c.color AS community_color, c.followers AS community_followers,
+              r.total_point AS ranking_total, r.participant_count AS ranking_count
        FROM events e
        LEFT JOIN communities c ON c.slug = e.slug
+       LEFT JOIN rankings r ON r.event_id = e.id
        WHERE ${clauses}
-       ORDER BY (e.is_open = 1 AND e.is_future = 0) DESC, e.is_future DESC, e.started_at DESC
-       LIMIT ?`,
+       ORDER BY e.started_at DESC`,
     )
-    .all(...params, limit)
+    .all(...params)
     .map((row) => ({
       ...hydrateEvent(row),
       community: row.community_name
@@ -312,6 +313,10 @@ export function searchEvents(terms, limit = 61) {
             followers: row.community_followers || 0,
           }
         : null,
+      ranking:
+        row.ranking_total == null
+          ? null
+          : { totalPoint: row.ranking_total, count: row.ranking_count },
     }));
 }
 

@@ -104,7 +104,7 @@ main { padding-bottom: 64px; }
   align-items: center;
   margin-top: 12px;
 }
-.picker-row.event-search { grid-template-columns: minmax(180px, 1fr) auto; }
+.picker-row.event-search { grid-template-columns: minmax(180px, 1fr) auto auto; }
 .picker-tabs { margin-bottom: 12px; }
 .theme-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .theme-row button {
@@ -116,6 +116,8 @@ main { padding-bottom: 64px; }
 }
 .theme-row button.active { background: var(--ink); color: white; border-color: var(--ink); }
 .picker-note { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
+.download-row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-top: 12px; }
+.download-row .picker-note { margin: 0; }
 .picker .event-list { margin-top: 14px; }
 .hero { display: grid; gap: 8px; margin: 8px 0 28px; }
 .eyebrow {
@@ -211,7 +213,7 @@ h2 { font-size: 28px; margin: 0; }
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
-.points-col span { color: var(--muted); font-size: 12px; }
+.points-col span { display: block; color: var(--muted); font-size: 12px; }
 
 .pill {
   display: inline-flex;
@@ -234,6 +236,7 @@ h2 { font-size: 28px; margin: 0; }
   border-radius: 10px;
   padding: 10px 12px;
 }
+.sort-select { width: auto; min-width: 11.5em; }
 
 .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
 .team-card {
