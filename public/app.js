@@ -17,6 +17,7 @@ document.body.addEventListener("click", (event) => {
   if (url.origin !== location.origin || url.pathname.startsWith("/api/")) return;
   if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   event.preventDefault();
+  if ((location.pathname.replace(/\/$/, "") || "/") === "/") state.homeScroll = window.scrollY;
   history.pushState(null, "", url.pathname + url.search + url.hash);
   route();
 });
@@ -98,11 +99,16 @@ function conditionText(conditions) {
 }
 
 async function renderHome() {
+  const refresh = new URLSearchParams(location.search).get("refresh") === "1";
+  if (refresh) history.replaceState(null, "", "/");
+  const restoreSearch = state.pickerTab === "event" && state.eventQuery && state.lastSearch?.query === state.eventQuery;
+  if (state.home && !refresh && restoreSearch) {
+    drawHome();
+    return;
+  }
   app.innerHTML = `<p class="loading">Please wait a moment.</p>`;
   try {
-    const refresh = new URLSearchParams(location.search).get("refresh") === "1";
     state.home = await api(`/api/home${refresh ? "?refresh=1" : ""}`);
-    if (refresh) history.replaceState(null, "", "/");
     drawHome();
   } catch (error) {
     app.innerHTML = `<div class="error">${esc(error.message)}</div>`;
@@ -263,7 +269,18 @@ function bindEventSearch() {
       runEventSearch(button.dataset.theme);
     });
   }
-  document.querySelector("#event-search-results").innerHTML = `<p class="picker-note">言葉を入れて検索してください。全チームの開催中と過去のイベントが対象です。</p>`;
+  const box = document.querySelector("#event-search-results");
+  const saved = state.lastSearch;
+  if (state.eventQuery && saved?.query === state.eventQuery) {
+    box.innerHTML = searchResultsHtml(saved);
+    if (state.homeScroll) requestAnimationFrame(() => window.scrollTo(0, state.homeScroll));
+    if (saved.scanning || saved.rankingPending) runEventSearch(state.eventQuery, { keep: true });
+    return;
+  }
+  box.innerHTML = state.eventQuery
+    ? `<p class="loading">各チームのイベントを探しています。</p>`
+    : `<p class="picker-note">言葉を入れて検索してください。全チームの開催中と過去のイベントが対象です。</p>`;
+  if (state.eventQuery) runEventSearch(state.eventQuery);
 }
 
 function sortValue(event, key) {
@@ -314,7 +331,7 @@ function searchResultsHtml(data) {
   return `<p class="picker-note">${note}</p>${download}${list}`;
 }
 
-async function runEventSearch(query) {
+async function runEventSearch(query, options = {}) {
   const token = ++state.searchToken;
   state.eventQuery = query.trim();
   for (const button of document.querySelectorAll("[data-theme]")) {
@@ -326,16 +343,18 @@ async function runEventSearch(query) {
     box.innerHTML = `<p class="picker-note">言葉を入れて検索してください。</p>`;
     return;
   }
-  state.lastSearch = null;
-  box.innerHTML = `<p class="loading">各チームのイベントを探しています。</p>`;
+  if (!options.keep) {
+    state.lastSearch = null;
+    box.innerHTML = `<p class="loading">各チームのイベントを探しています。</p>`;
+  }
   try {
     for (let guard = 0; guard < 400; guard += 1) {
       const data = await api(`/api/events?q=${encodeURIComponent(state.eventQuery)}`);
       if (token !== state.searchToken) return;
       const current = document.querySelector("#event-search-results");
       if (!current) return;
-      state.lastSearch = data;
-      current.innerHTML = searchResultsHtml(data);
+      state.lastSearch = { ...data, query: state.eventQuery };
+      current.innerHTML = searchResultsHtml(state.lastSearch);
       if (!data.scanning && !data.rankingPending) return;
     }
   } catch (error) {
