@@ -108,7 +108,23 @@ function searchTerms(query) {
       return alias === q || (q.length >= 2 && (q.includes(alias) || (alias.includes(q) && q.length >= 3)));
     }),
   );
-  return group || [query.trim()];
+  const terms = new Set(group || [query.trim()]);
+  for (const term of [...terms]) {
+    if (term === "アクリル" || term === "アクリル製品" || term === "アクリルグッズ") {
+      terms.add("アクリル");
+      terms.add("アクキー");
+      terms.add("アクスタ");
+    }
+    if (term.includes("アクリルスタンド") || term === "アクスタ") {
+      terms.add("アクリルスタンド");
+      terms.add("アクスタ");
+    }
+    if (term.includes("アクリルキーホルダー") || term === "アクキー") {
+      terms.add("アクリルキーホルダー");
+      terms.add("アクキー");
+    }
+  }
+  return [...terms];
 }
 
 const rankingFailed = new Set();

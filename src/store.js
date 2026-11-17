@@ -287,8 +287,13 @@ export function touchTeam(slug) {
 export function searchEvents(terms) {
   const cleaned = [...new Set(terms.map((term) => String(term || "").trim()).filter(Boolean))];
   if (!cleaned.length) return [];
-  const clauses = cleaned.map(() => "e.title LIKE ? ESCAPE '\\'").join(" OR ");
-  const params = cleaned.map((term) => `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`);
+  const clauses = cleaned
+    .map(() => "(e.title LIKE ? ESCAPE '\\' OR IFNULL(e.description, '') LIKE ? ESCAPE '\\')")
+    .join(" OR ");
+  const params = cleaned.flatMap((term) => {
+    const like = `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+    return [like, like];
+  });
   return db
     .prepare(
       `SELECT e.*, c.id AS community_row_id, c.name AS community_name, c.logo AS community_logo,

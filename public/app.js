@@ -207,7 +207,7 @@ function eventPickerHtml() {
   return `
     <p class="eyebrow">EVENT</p>
     <h2>イベントを探す</h2>
-    <p class="lede">言葉に合うイベントを、全部出します。ギフティング総額や人数を選ぶと、多い順に上から並びます。季節イベントはスプレッドシートでも保存できます。</p>
+    <p class="lede">イベント名と本文から、言葉に合うイベントを全部出します。ギフティング総額や人数を選ぶと、多い順に上から並びます。季節イベントはスプレッドシートでも保存できます。</p>
     <div class="picker-row event-search">
       <input class="search" id="event-search" placeholder="ハロウィン、開幕など" value="${esc(state.eventQuery)}" />
       <select class="select sort-select" id="event-sort" aria-label="並べ替え">
@@ -279,7 +279,7 @@ function bindEventSearch() {
   }
   box.innerHTML = state.eventQuery
     ? `<p class="loading">各チームのイベントを探しています。</p>`
-    : `<p class="picker-note">言葉を入れて検索してください。全チームの開催中と過去のイベントが対象です。</p>`;
+    : `<p class="picker-note">言葉を入れて検索してください。イベント名と本文が対象です。全チームの開催中と過去のイベントが対象です。</p>`;
   if (state.eventQuery) runEventSearch(state.eventQuery);
 }
 
