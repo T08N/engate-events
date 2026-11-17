@@ -207,9 +207,9 @@ function eventPickerHtml() {
   return `
     <p class="eyebrow">EVENT</p>
     <h2>イベントを探す</h2>
-    <p class="lede">イベント名と本文から、言葉に合うイベントを全部出します。ギフティング総額や人数を選ぶと、多い順に上から並びます。季節イベントはスプレッドシートでも保存できます。</p>
+    <p class="lede">イベント名と本文から、言葉に合うイベントを全部出します。クリスマス×アクリルのように × や空白でつなぐと、両方を含むものだけ出します。ギフティング総額や人数を選ぶと、多い順に上から並びます。</p>
     <div class="picker-row event-search">
-      <input class="search" id="event-search" placeholder="ハロウィン、開幕など" value="${esc(state.eventQuery)}" />
+      <input class="search" id="event-search" placeholder="クリスマス×アクリル" value="${esc(state.eventQuery)}" />
       <select class="select sort-select" id="event-sort" aria-label="並べ替え">
         <option value="points" ${state.eventSort === "points" ? "selected" : ""}>ギフティング総額</option>
         <option value="people" ${state.eventSort === "people" ? "selected" : ""}>ギフティング人数</option>

@@ -284,16 +284,20 @@ export function touchTeam(slug) {
   ).run(slug, nowIso());
 }
 
-export function searchEvents(terms) {
-  const cleaned = [...new Set(terms.map((term) => String(term || "").trim()).filter(Boolean))];
+export function searchEvents(groups) {
+  const incoming = Array.isArray(groups?.[0]) ? groups : [groups || []];
+  const cleaned = incoming
+    .map((group) => [...new Set((group || []).map((term) => String(term || "").trim()).filter(Boolean))])
+    .filter((group) => group.length);
   if (!cleaned.length) return [];
+  const likeFor = (term) => `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
   const clauses = cleaned
-    .map(() => "(e.title LIKE ? ESCAPE '\\' OR IFNULL(e.description, '') LIKE ? ESCAPE '\\')")
-    .join(" OR ");
-  const params = cleaned.flatMap((term) => {
-    const like = `%${term.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+    .map((group) => `(${group.map(() => "(e.title LIKE ? ESCAPE '\\' OR IFNULL(e.description, '') LIKE ? ESCAPE '\\')").join(" OR ")})`)
+    .join(" AND ");
+  const params = cleaned.flatMap((group) => group.flatMap((term) => {
+    const like = likeFor(term);
     return [like, like];
-  });
+  }));
   return db
     .prepare(
       `SELECT e.*, c.id AS community_row_id, c.name AS community_name, c.logo AS community_logo,

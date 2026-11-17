@@ -100,6 +100,13 @@ const SEARCH_THEMES = [
 ];
 const SEARCH_BATCH = 8;
 
+function queryParts(query) {
+  return String(query || "")
+    .split(/[\s　×✕＊*＋+、,，/／&＆]+|(?<=[^\x00-\x7F])[xXｘＸ](?=[^\x00-\x7F])/)
+    .map((part) => part.trim())
+    .filter((part) => part && !/^[xXｘＸ]+$/.test(part));
+}
+
 function searchTerms(query) {
   const q = query.trim().toLocaleLowerCase("ja");
   const group = SEARCH_THEMES.find((words) =>
@@ -125,6 +132,12 @@ function searchTerms(query) {
     }
   }
   return [...terms];
+}
+
+function searchGroups(query) {
+  return queryParts(query)
+    .map((part) => searchTerms(part))
+    .filter((group) => group.length);
 }
 
 const rankingFailed = new Set();
@@ -160,7 +173,7 @@ async function findEvents(query, force) {
     }
   });
   const pending = communities.filter(needsSync);
-  const events = store.searchEvents(searchTerms(query)).map((event) => {
+  const events = store.searchEvents(searchGroups(query)).map((event) => {
     const view = {
       ...publicEvent(event),
       community: publicCommunity(event.community),
